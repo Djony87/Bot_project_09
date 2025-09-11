@@ -1,9 +1,24 @@
 import asyncio
 import logging
+import sqlite3
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters.command import Command
 
 from keyboard import keyboard, main_kb
+
+with sqlite3.connect("new_db") as conn:
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            Date INTEGER
+        )
+    ''')
+    # cursor.execute('create table if DATA_Table ('
+    #                'id integer primary key,'
+    #                'Date integer,'
+    #                'Name string)')
 
 # Включаем логирование, чтобы не пропустить важные сообщения
 logging.basicConfig(level=logging.INFO)
