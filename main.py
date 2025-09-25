@@ -1,15 +1,20 @@
 import asyncio
 import logging
+import os
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters.command import Command
+from aiogram.types import InputFile
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import FSInputFile
 
-
-from keyboard import keyboard, main_kb
+from keyboard import  main_kb
 from databases.db import create_db, get_db, User
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func
+
+
 
 # Включаем логирование, чтобы не пропустить важные сообщения
 logging.basicConfig(level=logging.INFO)
@@ -22,22 +27,10 @@ dp = Dispatcher()
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer("Как подавать котлеты?", reply_markup=keyboard)
+    await message.answer("Привет я бот регистрации на веломаршрут", reply_markup=main_kb)
 
 
 # новый импорт!
-
-
-
-@dp.message(F.text.lower() == "с пюрешкой")
-async def with_puree(message: types.Message):
-    await message.reply("Отличный выбор!", reply_markup=main_kb)
-
-
-@dp.message(F.text.lower() == "без пюрешки")
-async def without_puree(message: types.Message):
-    await message.reply("Так невкусно!")
-
 
 # Запуск процесса поллинга новых апдейтов
 async def main():
@@ -153,6 +146,23 @@ async def handle_button_2(callback: types.CallbackQuery):
 
     await callback.answer()
 
+# @dp.callback_query(F.data == "info")
+# async def handle_button_2(callback: types.CallbackQuery):
+#     await callback.message.answer("Едем на велике")
+
+
+@dp.callback_query(F.data == "info")
+async def handle_button_2(callback: types.CallbackQuery):
+    try:
+        if os.path.exists("media/1.jpg"):
+            photo = FSInputFile("media/1.jpg")
+            await callback.message.answer_photo(photo, caption="Едем на велике")
+        else:
+            await callback.message.answer("Фото не найдено")
+    except TelegramBadRequest:
+        await callback.message.answer("Ошибка при отправке фото")
+    finally:
+        await callback.answer()
 
 if __name__ == "__main__":
     asyncio.run(main())
