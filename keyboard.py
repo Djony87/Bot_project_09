@@ -13,7 +13,12 @@ main_kb = InlineKeyboardMarkup(inline_keyboard=[
     ]
 ])
 
-
+admin_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="Регистрация", callback_data="hand_reg_user"),
+        InlineKeyboardButton(text="Все пользователи", callback_data="get_all_users")
+    ]
+])
 
 # keyboard = types.ReplyKeyboardMarkup(keyboard=kb)
 # InlineKeyboardButton(text="Все пользователи", callback_data="get_all_users")

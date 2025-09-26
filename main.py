@@ -2,18 +2,19 @@ import asyncio
 import logging
 import os
 
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, types, Router, F
 from aiogram.filters.command import Command
 from aiogram.types import InputFile
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import FSInputFile
+from aiogram.types import FSInputFile, Message
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
 
-from keyboard import  main_kb
+from keyboard import main_kb, admin_kb
 from databases.db import create_db, get_db, User
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func
-
 
 
 # Включаем логирование, чтобы не пропустить важные сообщения
@@ -24,10 +25,15 @@ bot = Bot(token="8461067216:AAFtD-lVa56mzsg2QLKyL9KeVVlyZJSbKtw")
 dp = Dispatcher()
 
 # Хэндлер на команду /start
-
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     await message.answer("Привет я бот регистрации на веломаршрут", reply_markup=main_kb)
+
+# Хэндлер на команду /admin
+@dp.message(Command("admin"))
+async def cmd_start(message: types.Message):
+    await message.answer("Добавим участника веломаршрута", reply_markup=admin_kb)
+
 
 
 # новый импорт!
@@ -85,6 +91,65 @@ async def handle_button_1(callback: types.CallbackQuery):
         await callback.message.answer("Вы уже были зарегистрированы ранее! ℹ️")
 
     await callback.answer()
+
+
+#Хендлер для кнопки Регистрация с callback_data="hand_reg_user"
+class RegistrationStates(StatesGroup):
+    waiting_for_full_name = State()
+    waiting_for_phone = State()
+
+
+@dp.callback_query(F.data == "hand_reg_user")
+async def handle_button_1(callback: types.CallbackQuery, state: FSMContext):
+    user = callback.from_user
+
+    # Запрашиваем полное имя
+    await callback.message.answer(
+        "📝 Введите ваше полное имя (ФИО):"
+    )
+    await state.set_state(RegistrationStates.waiting_for_full_name)
+    await state.update_data(user_id=user.id, username=user.username)
+
+    await callback.answer()
+
+
+# Обработчик ввода имени
+@dp.message(RegistrationStates.waiting_for_full_name)
+async def process_full_name(message: types.Message, state: FSMContext):
+    full_name = message.text
+
+    if len(full_name) < 2:
+        await message.answer("❌ Имя слишком короткое. Введите корректное ФИО:")
+        return
+
+    await state.update_data(full_name=full_name)
+    await message.answer("📱 Теперь введите ваш номер телефона:")
+    await state.set_state(RegistrationStates.waiting_for_phone)
+
+
+# Обработчик ввода телефона
+@dp.message(RegistrationStates.waiting_for_phone)
+async def process_phone(message: types.Message, state: FSMContext):
+    phone = message.text
+    data = await state.get_data()
+
+    # Регистрируем пользователя
+    success = await add_user_to_db(
+        user_id=data['user_id'],
+        username=data['username'],
+        full_name=data['full_name'],
+        phone=phone  # добавляем новое поле
+    )
+
+    if success:
+        await message.answer("✅ Вы успешно зарегистрированы!")
+    else:
+        await message.answer("❌ Ошибка регистрации. Попробуйте позже.")
+
+    await state.clear()
+
+
+
 
 # Функция для получения всех пользователей из БД
 async def get_all_users():
@@ -146,11 +211,7 @@ async def handle_button_2(callback: types.CallbackQuery):
 
     await callback.answer()
 
-# @dp.callback_query(F.data == "info")
-# async def handle_button_2(callback: types.CallbackQuery):
-#     await callback.message.answer("Едем на велике")
-
-
+# Хендлер для кнопки info
 @dp.callback_query(F.data == "info")
 async def handle_button_2(callback: types.CallbackQuery):
     try:
